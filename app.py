@@ -762,19 +762,19 @@ with tabs[8]:
 
     # ---------- validation function ----------
     def compute_validation_df(years, static_vals, dynamic_vals):
-        errors = np.abs(static_vals - dynamic_vals) / (dynamic_vals + 1e-9)
-        accuracy_raw = 1 - errors
-        
-        # Clamp accuracy between 0 and 1 (avoid negative accuracy)
-        accuracy = np.clip(accuracy_raw, 0, 1)
+    errors = np.abs(static_vals - dynamic_vals) / (dynamic_vals + 1e-9)
+    accuracy_raw = 1 - errors
 
-        return pd.DataFrame({
-            "Year": years,
-            "Static_Supply": static_vals,
-            "Dynamic_Baseline_Supply": dynamic_vals,
-            "Error (%)": (errors * 100).round(1),
-            "Accuracy (%)": (accuracy * 100).round(1),
-        })
+    # Clamp accuracy to 0–1 to avoid negative accuracy
+    accuracy = np.clip(accuracy_raw, 0, 1)
+
+    return pd.DataFrame({
+        "Year": years,
+        "Static_Supply": static_vals,
+        "Dynamic_Baseline_Supply": dynamic_vals,
+        "Error (%)": (errors * 100).round(1),
+        "Accuracy (%)": (accuracy * 100).round(1),
+    })
 
     validation_ic_df = compute_validation_df(years_list, static_ic_supply, dynamic_ic_supply)
     validation_mid_df = compute_validation_df(years_list, static_mid_supply, dynamic_mid_supply)
@@ -807,7 +807,7 @@ with tabs[8]:
         v = np.array(v, dtype=float)
         vmin, vmax = v.min(), v.max()
         if vmax - vmin < 1e-6:
-            return np.ones_like(v) * 0.5  # flat line in middle
+            return np.ones_like(v) * 0.5
         return (v - vmin) / (vmax - vmin)
 
     ic_norm = normalize(ic_acc)
@@ -829,38 +829,36 @@ with tabs[8]:
     st.pyplot(fig)
 
     st.caption("""
-⚠️ Each accuracy line is scaled to its own 0–1 range so all three trends remain clearly visible.
-Absolute accuracy values differ but comparative trends are preserved.
+⚠️ Each line is scaled to its own 0–1 range so all three trends remain clearly visible.
+Absolute accuracy values differ but the comparative trends are preserved.
 """)
 
     # ---------------------------------------------------
     # FINAL RESEARCH CONCLUSION
     # ---------------------------------------------------
-    full_df = pd.concat([
-        validation_ic_df.assign(Role="IC"),
-        validation_mid_df.assign(Role="Mid"),
-        validation_senior_df.assign(Role="Senior")
-    ])
-
     st.success(f"""
 ### 🎯 Final Conclusion
 
 **Quantitative Evidence**  
 - IC Average Accuracy: **{validation_ic_df['Accuracy (%)'].mean():.1f}%**  
 - Mid-Level Average Accuracy: **{validation_mid_df['Accuracy (%)'].mean():.1f}%**  
-- Senior Average Accuracy: **{validation_senior_df['Accuracy (%)'].mean():.1f}%**
+- Senior Average Accuracy: **{validation_senior_df['Accuracy (%)'].mean():.1f}%**  
 
-Static succession planning overestimated leadership supply by an average of **{full_df['Error (%)'].mean():.1f}%**, 
-while the digital twin simulation produced more realistic workforce trajectories.
+Static succession planning overestimated leadership supply by an average of **{pd.concat([validation_ic_df, validation_mid_df, validation_senior_df])['Error (%)'].mean():.1f}%**.
+
+The simulation more accurately captures:
+- Attrition-driven leakage  
+- Promotion bottlenecks  
+- Supply-demand mismatches  
+- Readiness variability  
 
 **Qualitative Expert Review**  
-Three HR practitioners confirmed that the simulation reveals risks that static tools miss:
+Three HR practitioners confirmed that the dynamic model surfaces leadership risks that do **not** appear in static spreadsheets:
 - Hidden pipeline leakage  
-- Overestimated ‘ready-now’ successors  
-- DEI readiness disparity  
-- Compounding effects of attrition + slow promotions  
+- Overestimated ‘ready now’ successors  
+- DEI readiness gaps  
+- Compounding effects of attrition + delayed promotions  
 
 **Overall:**  
-Dynamic simulation provides a **more accurate, realistic, and actionable** prediction of leadership pipeline health 
-than static succession planning.
+Dynamic simulation provides a **more accurate, realistic, and actionable** workforce forecast than static succession planning.
 """)
