@@ -737,44 +737,141 @@ with tabs[7]:
     )
 
 # ===== Tab: Methodology & Assumptions =====
-with tabs[8]:
+# Tab 8 — Methodology & Assumptions (Streamlit Section)
 
-    st.subheader("📚 Methodology & Model Assumptions")
+def render_tab8(tabs, st):
+    with tabs[8]:
+        st.subheader("📚 Methodology & Model Assumptions")
 
-    st.markdown("""
+        st.markdown(
+            """
 ### 1. Attrition Probability Calculation
 
-The simulation uses a **hybrid attrition modeling framework**:
+The simulation uses a hybrid attrition modeling approach.
 
 ---
 
-#### **A. Machine Learning Model (Preferred When Available)**
-If an attrition model is loaded (e.g., logistic regression / random forest), it uses:
+#### A. Machine Learning Model (When Available)
+If a trained attrition model loads, predictions use:
 - Age  
 - Tenure  
 - Performance rating  
 - Role level  
-- Gender & Race (optional categorical fields)  
-
-to produce an **individual attrition probability**.
+- Gender & Race  
 
 ---
 
-#### **B. Heuristic Fallback Model (When ML Model Not Available)**  
-Based on SHRM + Tech Industry turnover benchmarks:
+#### B. Heuristic Fallback Model (Default)
+Industry benchmarks (SHRM + tech workforce):
+- Individual Contributors ≈ 15% yearly turnover  
+- Mid-level Managers ≈ 10%  
+- Senior Leaders ≈ 7%  
 
-| Role Level | Avg. Annual Turnover |
-|-----------|-----------------------|
-| Individual Contributor | ~15% |
-| Mid-Level Manager | ~10% |
-| Senior Leader | ~7% |
+Adjustments:
+- Higher attrition for early-tenure employees  
+- Lower attrition for top performers  
+- Higher attrition for low performers  
 
-Additional adjustments:
-- Early-tenure employees have higher attrition  
-- Top performers have lower attrition  
-- Low performers have higher attrition  
+All probabilities are clipped between **2% and 60%**.
 
-Formula used:
+---
+
+### 2. Promotion Readiness Calculation
+Readiness is based on performance, tenure, and skill alignment.
+
+**Mid-Level Readiness**
+```
+0.5 * perf_norm + 0.2 * tenure_norm + 0.3 * skill_score_mid
+```
+
+**Senior-Level Readiness**
+```
+0.4 * perf_norm + 0.2 * tenure_norm + 0.4 * skill_score_senior
+```
+
+Thresholds:
+- IC → Mid: 0.55  
+- Mid → Senior: 0.60  
+
+---
+
+### 3. Skill Matching (Jaccard Similarity)
+
+Skills are transformed into sets and compared to required role skills.
+
+Mid-level required skills:
+- People management  
+- Project management  
+- Product ownership  
+
+Senior-level required skills:
+- Strategy  
+- AI governance  
+- Product leadership  
+- People management  
+
+---
+
+### 4. Data Sources
+
+**IBM HR Attrition Dataset (public)**  
+Used for attrition model foundations and benchmarking.
+
+**Synthetic Workforce Dataset (default)**  
+Includes simulated:
+- Role distribution  
+- Performance  
+- Tenure  
+- Skills  
+- Demographic variation  
+
+This avoids privacy concerns while keeping realistic patterns.
+
+---
+
+### 5. Simulation Engine
+
+Each simulated year includes:
+1. Attrition  
+2. Retirement  
+3. Promotions (readiness-based, with optional DEI boost)  
+4. External hiring  
+5. Upskilling  
+6. Demand growth based on user input  
+
+This allows dynamic interactions that static succession planning cannot capture.
+
+---
+
+### 6. Known Limitations
+This model is a prototype, not a full enterprise digital twin.
+
+Limitations:
+- No Workday/SAP HRIS integration  
+- Skills modeled as simple tags, not proficiency levels  
+- Performance static across years  
+- No lateral transitions or cross-functional mobility  
+- No compensation/engagement factors  
+- No reporting-chain or org-structure modeling  
+- Attrition logic not calibrated to a specific company  
+
+---
+
+### 7. Future Enhancements
+
+Potential improvements:
+- Real-time HRIS integration  
+- Automation risk modelling using O*NET  
+- Compensation-driven retention modelling  
+- Organizational Network Analysis (ONA)  
+- Skill proficiency scoring instead of tags  
+- Department-level leadership gap forecasting  
+
+---
+"""
+        )
+
+
 
 
 # ===== Tab 9: Research Conclusion + Validation =====
