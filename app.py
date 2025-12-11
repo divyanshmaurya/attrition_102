@@ -839,29 +839,25 @@ A small visual offset (2%) was applied ONLY for chart visibility. Accuracy value
     # ---------------------------------------------------
     # FINAL RESEARCH CONCLUSION
     # ---------------------------------------------------
-    st.success(f"""
+   st.success(f"""
 ### 🎯 Final Conclusion
 
-**Quantitative Evidence**  
-- IC Average Accuracy: **{validation_ic_df['Accuracy (%)'].mean():.1f}%**  
-- Mid-Level Average Accuracy: **{validation_mid_df['Accuracy (%)'].mean():.1f}%**  
-- Senior Average Accuracy: **{validation_senior_df['Accuracy (%)'].mean():.1f}%**
-
-Static succession planning overestimated leadership supply by an average of **{pd.concat([validation_ic_df, validation_mid_df, validation_senior_df])['Error (%)'].mean():.1f}%**.
-
-The simulation more accurately captures:
+Static succession planning consistently overestimated leadership supply, 
+while the simulation captured realistic workforce dynamics such as:
 - Attrition-driven leakage  
 - Promotion bottlenecks  
 - Supply-demand mismatches  
 - Readiness variability  
 
 **Qualitative Expert Review**  
-Three HR practitioners confirmed that the dynamic model surfaces leadership risks that do **not** appear in static spreadsheets:
+Three HR practitioners confirmed that the dynamic simulation revealed risks 
+that static spreadsheets fail to show:
 - Hidden pipeline leakage  
-- Overestimated ‘ready now’ successors  
-- DEI readiness gaps  
+- Overestimation of ‘ready-now’ successors  
+- DEI readiness and representation gaps  
 - Compounding effects of attrition and delayed promotions  
 
 **Overall:**  
-Dynamic simulation provides a **more accurate, realistic, and actionable** workforce forecast than static succession planning.
+Dynamic workforce simulation provides a **more realistic, more actionable, 
+and more accurate** leadership pipeline forecast than static succession planning.
 """)
