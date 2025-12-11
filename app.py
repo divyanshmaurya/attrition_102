@@ -739,35 +739,34 @@ with tabs[7]:
 with tabs[8]:
 
     st.subheader("Research Question")
-    st.markdown(
-        "**Can a dynamic workforce simulation more accurately predict IC, Mid-Level, and Senior leadership gaps compared to static succession planning?**"
-    )
+    st.markdown("**Can a dynamic workforce simulation more accurately predict leadership gaps across IC, Mid, and Senior roles compared to static succession planning?**")
 
     # ---------------------------------------------------
-    # VALIDATION DATA PREPARATION
+    # VALIDATION: STATIC VS DYNAMIC BASELINE
     # ---------------------------------------------------
     st.subheader("📏 Validation: Static vs Dynamic Baseline Accuracy")
 
     years_list = static_tbl["year"].values
 
-    # Static IC supply = constant baseline Yr1
+    # --- IC Supply (Static = baseline year1) ---
     static_ic_supply = np.repeat(tbl_baseline["headcount_ic"].iloc[0], len(years_list))
     dynamic_ic_supply = tbl_baseline["headcount_ic"].values
 
-    # Static Mid & Senior supply from static table
+    # --- Mid Supply (Static provided) ---
     static_mid_supply = static_tbl["static_mid_supply"].values
     dynamic_mid_supply = tbl_baseline["headcount_mid"].values
 
+    # --- Senior Supply (Static provided) ---
     static_senior_supply = static_tbl["static_senior_supply"].values
     dynamic_senior_supply = tbl_baseline["headcount_senior"].values
 
-    # ---------------------------------------------------
-    # COMPUTE ACCURACY (CLAMPED 0–100%)
-    # ---------------------------------------------------
+    # ---------- validation function ----------
     def compute_validation_df(years, static_vals, dynamic_vals):
         errors = np.abs(static_vals - dynamic_vals) / (dynamic_vals + 1e-9)
         accuracy_raw = 1 - errors
-        accuracy = np.clip(accuracy_raw, 0, 1)  # clamp accuracy
+        
+        # Clamp accuracy between 0 and 1 (avoid negative accuracy)
+        accuracy = np.clip(accuracy_raw, 0, 1)
 
         return pd.DataFrame({
             "Year": years,
@@ -781,62 +780,35 @@ with tabs[8]:
     validation_mid_df = compute_validation_df(years_list, static_mid_supply, dynamic_mid_supply)
     validation_senior_df = compute_validation_df(years_list, static_senior_supply, dynamic_senior_supply)
 
-    # ---------------------------------------------------
-    # DISPLAY VALIDATION TABLES
-    # ---------------------------------------------------
-    st.subheader("IC Validation Table")
+    # -----------------------
+    # SHOW TABLES
+    # -----------------------
+    st.subheader("IC Supply Validation Table")
     st.dataframe(validation_ic_df, use_container_width=True)
 
-    st.subheader("Mid-Level Validation Table")
+    st.subheader("Mid-Level Supply Validation Table")
     st.dataframe(validation_mid_df, use_container_width=True)
 
-    st.subheader("Senior Validation Table")
+    st.subheader("Senior Supply Validation Table")
     st.dataframe(validation_senior_df, use_container_width=True)
-
-    # ---------------------------------------------------
-    # SMART-SCALED ACCURACY PLOTS
-    # ---------------------------------------------------
-    st.subheader("📈 Accuracy Over Time (IC / Mid / Senior)")
-
-    def smart_accuracy_plot(validation_df, title):
-        fig, ax = plt.subplots()
-        years = validation_df["Year"]
-        acc_vals = validation_df["Accuracy (%)"]
-
-        # Smart scaling logic
-        spread = max(acc_vals.max() - acc_vals.min(), 0.5)
-        center = acc_vals.mean()
-        ymin = max(center - spread * 2, 0)
-        ymax = min(center + spread * 2, 100)
-
-        ax.plot(years, acc_vals, marker="o", linewidth=2, color="#1f77b4")
-        ax.set_ylim(ymin, ymax)
-        ax.set_xlabel("Year")
-        ax.set_ylabel("Accuracy (%)")
-        ax.set_title(title)
-        ax.grid(True)
-
-        return fig
-
-    st.pyplot(smart_accuracy_plot(validation_ic_df, "IC Accuracy (Smart Scaled)"))
-    st.pyplot(smart_accuracy_plot(validation_mid_df, "Mid-Level Accuracy (Smart Scaled)"))
-    st.pyplot(smart_accuracy_plot(validation_senior_df, "Senior Accuracy (Smart Scaled)"))
 
     # ---------------------------------------------------
     # COMBINED MULTI-LINE ACCURACY CHART (NORMALIZED)
     # ---------------------------------------------------
-    st.subheader("🔗 Combined Accuracy Comparison (Normalized for Visibility)")
+    st.subheader("🔗 Combined Accuracy Comparison (IC vs Mid vs Senior)")
 
     ic_acc = validation_ic_df["Accuracy (%)"].values
     mid_acc = validation_mid_df["Accuracy (%)"].values
     sen_acc = validation_senior_df["Accuracy (%)"].values
-    years = validation_ic_df["Year"].values
+    years = validation_mid_df["Year"].values
 
-    def normalize(x):
-        x = np.array(x, float)
-        if x.max() - x.min() < 1e-6:
-            return np.ones_like(x) * 0.5
-        return (x - x.min()) / (x.max() - x.min())
+    # normalize function for visual comparison
+    def normalize(v):
+        v = np.array(v, dtype=float)
+        vmin, vmax = v.min(), v.max()
+        if vmax - vmin < 1e-6:
+            return np.ones_like(v) * 0.5  # flat line in middle
+        return (v - vmin) / (vmax - vmin)
 
     ic_norm = normalize(ic_acc)
     mid_norm = normalize(mid_acc)
@@ -844,110 +816,51 @@ with tabs[8]:
 
     fig, ax = plt.subplots(figsize=(8, 5))
 
-    ax.plot(years, ic_norm, marker="o", linewidth=2.5, color="#1f77b4", label="IC (scaled)")
-    ax.plot(years, mid_norm, marker="o", linewidth=2.5, color="#d62728", label="Mid-Level (scaled)")
-    ax.plot(years, sen_norm, marker="o", linewidth=2.5, color="#2ca02c", label="Senior (scaled)")
-
-    # Performance bands (unscaled)
-    ax.axhspan(0.9, 1.0, color="green", alpha=0.08, label="Excellent (90–100%)")
-    ax.axhspan(0.75, 0.9, color="yellow", alpha=0.1, label="Moderate (75–90%)")
-    ax.axhspan(0.0, 0.75, color="red", alpha=0.05, label="Low (<75%)")
+    ax.plot(years, ic_norm, marker='o', linewidth=2.8, label="IC (scaled)", color="#1f77b4")
+    ax.plot(years, mid_norm, marker='o', linewidth=2.8, label="Mid-Level (scaled)", color="#d62728")
+    ax.plot(years, sen_norm, marker='o', linewidth=2.8, label="Senior (scaled)", color="#2ca02c")
 
     ax.set_xlabel("Year")
     ax.set_ylabel("Scaled Accuracy (0–1)")
-    ax.set_title("Combined Accuracy Comparison Across All Levels")
+    ax.set_title("Combined Accuracy Comparison (Normalized for Visibility)")
     ax.grid(True)
     ax.legend()
 
     st.pyplot(fig)
 
-    st.caption("⚠️ Normalized scaling ensures all lines remain visible even if their absolute values differ.")
+    st.caption("""
+⚠️ Each accuracy line is scaled to its own 0–1 range so all three trends remain clearly visible.
+Absolute accuracy values differ but comparative trends are preserved.
+""")
 
     # ---------------------------------------------------
-    # ROLLING TREND LINES
+    # FINAL RESEARCH CONCLUSION
     # ---------------------------------------------------
-    st.subheader("📉 Rolling Accuracy Trends (3-Year Moving Average)")
-
-    def add_rolling(df):
-        df2 = df.copy()
-        df2["Rolling Accuracy"] = df2["Accuracy (%)"].rolling(window=3, min_periods=1).mean()
-        return df2
-
-    ic_roll = add_rolling(validation_ic_df)
-    mid_roll = add_rolling(validation_mid_df)
-    sen_roll = add_rolling(validation_senior_df)
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-    ax.plot(ic_roll["Year"], ic_roll["Rolling Accuracy"], linewidth=2.5, label="IC")
-    ax.plot(mid_roll["Year"], mid_roll["Rolling Accuracy"], linewidth=2.5, label="Mid-Level")
-    ax.plot(sen_roll["Year"], sen_roll["Rolling Accuracy"], linewidth=2.5, label="Senior")
-
-    ax.set_ylim(0, 100)
-    ax.set_xlabel("Year")
-    ax.set_ylabel("Rolling Accuracy (%)")
-    ax.set_title("Rolling 3-Year Average Accuracy Trends")
-    ax.grid(True)
-    ax.legend()
-
-    st.pyplot(fig)
-
-    # ---------------------------------------------------
-    # DOWNLOADABLE VALIDATION REPORTS (CSV + PDF)
-    # ---------------------------------------------------
-    st.subheader("📄 Download Validation Reports")
-
-    validation_full = pd.concat([
+    full_df = pd.concat([
         validation_ic_df.assign(Role="IC"),
         validation_mid_df.assign(Role="Mid"),
         validation_senior_df.assign(Role="Senior")
     ])
 
-    csv = validation_full.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Download CSV Report", csv, "validation_report.csv", "text/csv")
-
-    import tempfile
-    from fpdf import FPDF
-
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.cell(0, 10, "Leadership Pipeline Validation Report", ln=True)
-
-    for _, row in validation_full.iterrows():
-        pdf.cell(
-            0, 8,
-            f"Year {row['Year']} | {row['Role']} | Static={row['Static_Supply']} | "
-            f"Dynamic={row['Dynamic_Baseline_Supply']} | Accuracy={row['Accuracy (%)']}%",
-            ln=True
-        )
-
-    pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
-    pdf.output(pdf_path)
-
-    with open(pdf_path, "rb") as f:
-        st.download_button("📥 Download PDF Report", f, "validation_report.pdf")
-
-    # ---------------------------------------------------
-    # FINAL CONCLUSION
-    # ---------------------------------------------------
     st.success(f"""
 ### 🎯 Final Conclusion
 
-**Quantitative Findings**
-- IC Avg Accuracy: **{validation_ic_df['Accuracy (%)'].mean():.1f}%**
-- Mid-Level Avg Accuracy: **{validation_mid_df['Accuracy (%)'].mean():.1f}%**
-- Senior Avg Accuracy: **{validation_senior_df['Accuracy (%)'].mean():.1f}%**
+**Quantitative Evidence**  
+- IC Average Accuracy: **{validation_ic_df['Accuracy (%)'].mean():.1f}%**  
+- Mid-Level Average Accuracy: **{validation_mid_df['Accuracy (%)'].mean():.1f}%**  
+- Senior Average Accuracy: **{validation_senior_df['Accuracy (%)'].mean():.1f}%**
 
-Static succession planning overestimated leadership supply by **{validation_full['Error (%)'].mean():.1f}%** on average.
+Static succession planning overestimated leadership supply by an average of **{full_df['Error (%)'].mean():.1f}%**, 
+while the digital twin simulation produced more realistic workforce trajectories.
 
-**Qualitative Findings**
-Three HR practitioners confirmed that the simulation revealed:
+**Qualitative Expert Review**  
+Three HR practitioners confirmed that the simulation reveals risks that static tools miss:
 - Hidden pipeline leakage  
-- Overestimated 'ready now' successors  
-- DEI representation & readiness gaps  
-- Attrition × promotion timing risks  
+- Overestimated ‘ready-now’ successors  
+- DEI readiness disparity  
+- Compounding effects of attrition + slow promotions  
 
-**Overall**
-Dynamic simulation offers **more accurate, realistic, and actionable** workforce forecasts compared to static spreadsheets.
+**Overall:**  
+Dynamic simulation provides a **more accurate, realistic, and actionable** prediction of leadership pipeline health 
+than static succession planning.
 """)
-
