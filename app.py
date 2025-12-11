@@ -488,11 +488,12 @@ tabs = st.tabs([
     "🤖 Attrition Prediction",
     "🔭 Leadership Gap Forecast",
     "🧠 Skill Shortage Analysis",
-    "🧪 What-If Simulation (Digital Twin–Inspired)",
+    "🧪 What-If & Digital Twin",
     "🚨 Retention Risk Forecast",
     "🌍 Diversity & DEI",
-    "⚖️ Static vs Simulation",
-    "🎯 Research & Methodology",
+    "⚖️ Static vs Digital Twin",
+    "📚 Methodology & Assumptions",
+    "🎯 Research Conclusion",
 ])
 
 # ===== Tab 1: Data Overview =====
@@ -734,6 +735,47 @@ with tabs[7]:
         "Mid-level attrition and promotion velocity over several years, the simulation can reveal that only two of "
         "them are still around and ready when the role actually opens — a 60% shortfall that static planning hides."
     )
+
+# ===== Tab: Methodology & Assumptions =====
+with tabs[8]:
+
+    st.subheader("📚 Methodology & Model Assumptions")
+
+    st.markdown("""
+### 1. Attrition Probability Calculation
+
+The simulation uses a **hybrid attrition modeling framework**:
+
+---
+
+#### **A. Machine Learning Model (Preferred When Available)**
+If an attrition model is loaded (e.g., logistic regression / random forest), it uses:
+- Age  
+- Tenure  
+- Performance rating  
+- Role level  
+- Gender & Race (optional categorical fields)  
+
+to produce an **individual attrition probability**.
+
+---
+
+#### **B. Heuristic Fallback Model (When ML Model Not Available)**  
+Based on SHRM + Tech Industry turnover benchmarks:
+
+| Role Level | Avg. Annual Turnover |
+|-----------|-----------------------|
+| Individual Contributor | ~15% |
+| Mid-Level Manager | ~10% |
+| Senior Leader | ~7% |
+
+Additional adjustments:
+- Early-tenure employees have higher attrition  
+- Top performers have lower attrition  
+- Low performers have higher attrition  
+
+Formula used:
+
 
 # ===== Tab 9: Research Conclusion + Validation =====
 with tabs[8]:
