@@ -740,7 +740,31 @@ with tabs[8]:
 
     st.subheader("Research Question")
     st.markdown("**Can a dynamic workforce simulation more accurately predict leadership gaps across IC, Mid, and Senior roles compared to static succession planning?**")
+    def quick_findings(tbl_base: pd.DataFrame, tbl_scn: pd.DataFrame) -> Dict[str,str]:
+        out = {}
+        gap_base = int(tbl_base["mid_gap"].sum())
+        gap_scn  = int(tbl_scn["mid_gap"].sum())
+        out["gap_compare"] = f"Cumulative Mid gaps — Baseline vs Scenario: {gap_base} vs {gap_scn} (lower is better)."
+        cov_base = tbl_base["mid_skill_coverage"].mean()
+        cov_scn  = tbl_scn["mid_skill_coverage"].mean()
+        out["skill"] = f"Avg Mid skill coverage — Baseline vs Scenario: {cov_base:.2f} vs {cov_scn:.2f}."
+        div_base = tbl_base["diversity_mid_share"].mean()
+        div_scn  = tbl_scn["diversity_mid_share"].mean()
+        out["div"]  = f"Avg Mid diversity share — Baseline vs Scenario: {div_base:.2f} vs {div_scn:.2f}."
+        r_base = tbl_base["avg_attrition_prob_mid"].mean()
+        r_scn  = tbl_scn["avg_attrition_prob_mid"].mean()
+        out["risk"] = f"Avg Mid attrition risk — Baseline vs Scenario: {r_base:.2f} vs {r_scn:.2f}."
+        return out
 
+    kf = quick_findings(tbl_baseline, tbl_scn)
+    st.markdown(
+        f"""
+- **Leadership Gaps:** {kf['gap_compare']}  
+- **Skills:** {kf['skill']}  
+- **DEI:** {kf['div']}  
+- **Retention Risk:** {kf['risk']}  
+"""
+    )
     # ---------------------------------------------------
     # VALIDATION: STATIC VS DYNAMIC BASELINE
     # ---------------------------------------------------
