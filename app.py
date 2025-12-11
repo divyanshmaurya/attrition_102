@@ -874,7 +874,7 @@ with tabs[8]:
     st.pyplot(fig)
 
     st.caption("""
-⚠️ Mid-level accuracy was 0% across all years, making its line invisible. 
+Mid-level accuracy was 0% across all years, making its line invisible. 
 A small visual offset (2%) was applied ONLY for chart visibility. Accuracy values in tables remain correct.
 """)
 
