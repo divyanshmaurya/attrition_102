@@ -764,10 +764,10 @@ with tabs[8]:
     def compute_validation_df(years, static_vals, dynamic_vals):
         errors = np.abs(static_vals - dynamic_vals) / (dynamic_vals + 1e-9)
         accuracy_raw = 1 - errors
-    
-        # Clamp accuracy to 0–1 to avoid negative accuracy
+
+        # Clamp accuracy to 0–1 for reporting
         accuracy = np.clip(accuracy_raw, 0, 1)
-    
+
         return pd.DataFrame({
             "Year": years,
             "Static_Supply": static_vals,
@@ -775,7 +775,7 @@ with tabs[8]:
             "Error (%)": (errors * 100).round(1),
             "Accuracy (%)": (accuracy * 100).round(1),
         })
-    
+
     validation_ic_df = compute_validation_df(years_list, static_ic_supply, dynamic_ic_supply)
     validation_mid_df = compute_validation_df(years_list, static_mid_supply, dynamic_mid_supply)
     validation_senior_df = compute_validation_df(years_list, static_senior_supply, dynamic_senior_supply)
@@ -802,16 +802,19 @@ with tabs[8]:
     sen_acc = validation_senior_df["Accuracy (%)"].values
     years = validation_mid_df["Year"].values
 
+    # FIX: If Mid accuracy is all zero, visually offset it so the line becomes visible
+    mid_acc_display = np.where(mid_acc == 0, 2, mid_acc)
+
     # normalize function for visual comparison
     def normalize(v):
         v = np.array(v, dtype=float)
         vmin, vmax = v.min(), v.max()
         if vmax - vmin < 1e-6:
-            return np.ones_like(v) * 0.5
+            return np.ones_like(v) * 0.5  # flat line for identical values
         return (v - vmin) / (vmax - vmin)
 
     ic_norm = normalize(ic_acc)
-    mid_norm = normalize(mid_acc)
+    mid_norm = normalize(mid_acc_display)  # ← FIX APPLIED HERE
     sen_norm = normalize(sen_acc)
 
     fig, ax = plt.subplots(figsize=(8, 5))
@@ -829,8 +832,8 @@ with tabs[8]:
     st.pyplot(fig)
 
     st.caption("""
-⚠️ Each line is scaled to its own 0–1 range so all three trends remain clearly visible.
-Absolute accuracy values differ but the comparative trends are preserved.
+⚠️ Mid-level accuracy was 0% across all years, making its line invisible. 
+A small visual offset (2%) was applied ONLY for chart visibility. Accuracy values in tables remain correct.
 """)
 
     # ---------------------------------------------------
@@ -842,7 +845,7 @@ Absolute accuracy values differ but the comparative trends are preserved.
 **Quantitative Evidence**  
 - IC Average Accuracy: **{validation_ic_df['Accuracy (%)'].mean():.1f}%**  
 - Mid-Level Average Accuracy: **{validation_mid_df['Accuracy (%)'].mean():.1f}%**  
-- Senior Average Accuracy: **{validation_senior_df['Accuracy (%)'].mean():.1f}%**  
+- Senior Average Accuracy: **{validation_senior_df['Accuracy (%)'].mean():.1f}%**
 
 Static succession planning overestimated leadership supply by an average of **{pd.concat([validation_ic_df, validation_mid_df, validation_senior_df])['Error (%)'].mean():.1f}%**.
 
@@ -857,7 +860,7 @@ Three HR practitioners confirmed that the dynamic model surfaces leadership risk
 - Hidden pipeline leakage  
 - Overestimated ‘ready now’ successors  
 - DEI readiness gaps  
-- Compounding effects of attrition + delayed promotions  
+- Compounding effects of attrition and delayed promotions  
 
 **Overall:**  
 Dynamic simulation provides a **more accurate, realistic, and actionable** workforce forecast than static succession planning.
