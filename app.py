@@ -488,12 +488,11 @@ tabs = st.tabs([
     "🤖 Attrition Prediction",
     "🔭 Leadership Gap Forecast",
     "🧠 Skill Shortage Analysis",
-    "🧪 What-If & Digital Twin",
+    "🧪 What-If Simulation (Digital Twin–Inspired)",
     "🚨 Retention Risk Forecast",
     "🌍 Diversity & DEI",
-    "⚖️ Static vs Digital Twin",
-    "📚 Methodology & Assumptions",
-    "🎯 Research Conclusion",
+    "⚖️ Static vs Simulation",
+    "🎯 Research & Methodology",
 ])
 
 # ===== Tab 1: Data Overview =====
@@ -736,144 +735,6 @@ with tabs[7]:
         "them are still around and ready when the role actually opens — a 60% shortfall that static planning hides."
     )
 
-# ===== Tab: Methodology & Assumptions =====
-# Tab 8 — Methodology & Assumptions (Streamlit Section)
-
-def render_tab8(tabs, st):
-    with tabs[8]:
-        st.subheader("📚 Methodology & Model Assumptions")
-
-        st.markdown(
-            """
-### 1. Attrition Probability Calculation
-
-The simulation uses a hybrid attrition modeling approach.
-
----
-
-#### A. Machine Learning Model (When Available)
-If a trained attrition model loads, predictions use:
-- Age  
-- Tenure  
-- Performance rating  
-- Role level  
-- Gender & Race  
-
----
-
-#### B. Heuristic Fallback Model (Default)
-Industry benchmarks (SHRM + tech workforce):
-- Individual Contributors ≈ 15% yearly turnover  
-- Mid-level Managers ≈ 10%  
-- Senior Leaders ≈ 7%  
-
-Adjustments:
-- Higher attrition for early-tenure employees  
-- Lower attrition for top performers  
-- Higher attrition for low performers  
-
-All probabilities are clipped between **2% and 60%**.
-
----
-
-### 2. Promotion Readiness Calculation
-Readiness is based on performance, tenure, and skill alignment.
-
-**Mid-Level Readiness**
-```
-0.5 * perf_norm + 0.2 * tenure_norm + 0.3 * skill_score_mid
-```
-
-**Senior-Level Readiness**
-```
-0.4 * perf_norm + 0.2 * tenure_norm + 0.4 * skill_score_senior
-```
-
-Thresholds:
-- IC → Mid: 0.55  
-- Mid → Senior: 0.60  
-
----
-
-### 3. Skill Matching (Jaccard Similarity)
-
-Skills are transformed into sets and compared to required role skills.
-
-Mid-level required skills:
-- People management  
-- Project management  
-- Product ownership  
-
-Senior-level required skills:
-- Strategy  
-- AI governance  
-- Product leadership  
-- People management  
-
----
-
-### 4. Data Sources
-
-**IBM HR Attrition Dataset (public)**  
-Used for attrition model foundations and benchmarking.
-
-**Synthetic Workforce Dataset (default)**  
-Includes simulated:
-- Role distribution  
-- Performance  
-- Tenure  
-- Skills  
-- Demographic variation  
-
-This avoids privacy concerns while keeping realistic patterns.
-
----
-
-### 5. Simulation Engine
-
-Each simulated year includes:
-1. Attrition  
-2. Retirement  
-3. Promotions (readiness-based, with optional DEI boost)  
-4. External hiring  
-5. Upskilling  
-6. Demand growth based on user input  
-
-This allows dynamic interactions that static succession planning cannot capture.
-
----
-
-### 6. Known Limitations
-This model is a prototype, not a full enterprise digital twin.
-
-Limitations:
-- No Workday/SAP HRIS integration  
-- Skills modeled as simple tags, not proficiency levels  
-- Performance static across years  
-- No lateral transitions or cross-functional mobility  
-- No compensation/engagement factors  
-- No reporting-chain or org-structure modeling  
-- Attrition logic not calibrated to a specific company  
-
----
-
-### 7. Future Enhancements
-
-Potential improvements:
-- Real-time HRIS integration  
-- Automation risk modelling using O*NET  
-- Compensation-driven retention modelling  
-- Organizational Network Analysis (ONA)  
-- Skill proficiency scoring instead of tags  
-- Department-level leadership gap forecasting  
-
----
-"""
-        )
-
-
-
-
 # ===== Tab 9: Research Conclusion + Validation =====
 with tabs[8]:
 
@@ -971,34 +832,32 @@ with tabs[8]:
     st.pyplot(fig)
 
     st.caption("""
-Mid-level accuracy was 0% across all years, making its line invisible. 
+⚠️ Mid-level accuracy was 0% across all years, making its line invisible. 
 A small visual offset (2%) was applied ONLY for chart visibility. Accuracy values in tables remain correct.
 """)
 
     # ---------------------------------------------------
     # FINAL RESEARCH CONCLUSION
     # ---------------------------------------------------
-    st.success(
-    """
-    ### 🎯 Final Conclusion
-    
-    Static succession planning consistently overestimated leadership supply,
-    while the simulation captured realistic workforce dynamics such as:
-    - Attrition-driven leakage  
-    - Promotion bottlenecks  
-    - Supply-demand mismatches  
-    - Readiness variability  
-    
-    **Qualitative Expert Review**  
-    Three HR practitioners confirmed that the dynamic simulation revealed risks 
-    that static spreadsheets fail to show:
-    - Hidden pipeline leakage  
-    - Overestimation of ready-now successors  
-    - DEI readiness and representation gaps  
-    - Compounding effects of attrition and delayed promotions  
-    
-    **Overall:**  
-    Dynamic workforce simulation provides a **more realistic, more actionable, 
-    and more accurate** leadership pipeline forecast than static succession planning.
-    """
-    )
+   st.success(f"""
+### 🎯 Final Conclusion
+
+Static succession planning consistently overestimated leadership supply, 
+while the simulation captured realistic workforce dynamics such as:
+- Attrition-driven leakage  
+- Promotion bottlenecks  
+- Supply-demand mismatches  
+- Readiness variability  
+
+**Qualitative Expert Review**  
+Three HR practitioners confirmed that the dynamic simulation revealed risks 
+that static spreadsheets fail to show:
+- Hidden pipeline leakage  
+- Overestimation of ‘ready-now’ successors  
+- DEI readiness and representation gaps  
+- Compounding effects of attrition and delayed promotions  
+
+**Overall:**  
+Dynamic workforce simulation provides a **more realistic, more actionable, 
+and more accurate** leadership pipeline forecast than static succession planning.
+""")
