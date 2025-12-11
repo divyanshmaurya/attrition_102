@@ -842,19 +842,6 @@ A small visual offset (2%) was applied ONLY for chart visibility. Accuracy value
     st.success(f"""
 ### 🎯 Final Conclusion
 
-**Quantitative Evidence**  
-- IC Average Accuracy: **{validation_ic_df['Accuracy (%)'].mean():.1f}%**  
-- Mid-Level Average Accuracy: **{validation_mid_df['Accuracy (%)'].mean():.1f}%**  
-- Senior Average Accuracy: **{validation_senior_df['Accuracy (%)'].mean():.1f}%**
-
-Static succession planning overestimated leadership supply by an average of **{pd.concat([validation_ic_df, validation_mid_df, validation_senior_df])['Error (%)'].mean():.1f}%**.
-
-The simulation more accurately captures:
-- Attrition-driven leakage  
-- Promotion bottlenecks  
-- Supply-demand mismatches  
-- Readiness variability  
-
 **Qualitative Expert Review**  
 Three HR practitioners confirmed that the dynamic model surfaces leadership risks that do **not** appear in static spreadsheets:
 - Hidden pipeline leakage  
