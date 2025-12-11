@@ -896,7 +896,7 @@ while the simulation captured realistic workforce dynamics such as:
 Three HR practitioners confirmed that the dynamic simulation revealed risks 
 that static spreadsheets fail to show:
 - Hidden pipeline leakage  
-- Overestimation of 'ready-now' successors  
+- Overestimation of ready-now successors  
 - DEI readiness and representation gaps  
 - Compounding effects of attrition and delayed promotions  
 
