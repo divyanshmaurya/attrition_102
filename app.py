@@ -978,7 +978,7 @@ A small visual offset (2%) was applied ONLY for chart visibility. Accuracy value
     # ---------------------------------------------------
     # FINAL RESEARCH CONCLUSION
     # ---------------------------------------------------
-  st.success(
+    st.success(
     """
     ### 🎯 Final Conclusion
     
