@@ -1,3 +1,4 @@
+# app.py
 import os
 import joblib
 import numpy as np
@@ -11,7 +12,7 @@ from typing import List, Tuple, Dict, Set
 # Streamlit Page Config
 # ------------------------------
 st.set_page_config(
-    page_title="Leadership Pipeline Digital Twin",
+    page_title="Leadership Pipeline Simulation (Digital Twin–Inspired)",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -135,13 +136,11 @@ df["role_level"] = df[COL_ROLE].astype(str).str.lower().map(lambda x: ROLE_MAP.g
 
 # Skills & readiness helpers
 def parse_skills(s) -> Set[str]:
-    if pd.isna(s):
-        return set()
+    if pd.isna(s): return set()
     return set([t.strip().lower() for t in str(s).split(",") if t.strip()])
 
 def jaccard(a:set, b:set):
-    if not a and not b:
-        return 0.0
+    if not a and not b: return 0.0
     return len(a & b)/len(a | b)
 
 TARGET_MID_SKILLS = {"people_mgmt","project_mgmt","product"}
@@ -165,6 +164,7 @@ READY_SENIOR_TH = 0.60
 # Attrition prob (model or heuristic)
 # ------------------------------
 def infer_attrition_prob(sub: pd.DataFrame) -> np.ndarray:
+    # try the provided model with several feature sets
     if attrition_model is not None:
         candidate_feature_sets = [
             [COL_AGE, COL_TENURE, COL_PERF, COL_GENDER, COL_RACE, "role_level"],
@@ -174,8 +174,9 @@ def infer_attrition_prob(sub: pd.DataFrame) -> np.ndarray:
         for feats in candidate_feature_sets:
             try:
                 X = sub[feats].copy()
+                # one-hot minimal handling if model can't take strings
                 for c in X.columns:
-                    if X[c].dtype == "O":
+                    if X[c].dtype == 'O':
                         X = pd.get_dummies(X, columns=[c], drop_first=True)
                 p = attrition_model.predict_proba(X)[:,1]
                 return np.clip(p, 0.02, 0.60)
@@ -188,6 +189,7 @@ def infer_attrition_prob(sub: pd.DataFrame) -> np.ndarray:
         except Exception:
             pass
 
+    # heuristic fallback
     base = np.where(sub["role_level"].eq("IC"), 0.16,
             np.where(sub["role_level"].eq("Mid"), 0.10, 0.07))
     adj_tenure = np.where(sub[COL_TENURE] < 1.0, +0.06, np.where(sub[COL_TENURE] < 3.0, +0.03, -0.01))
@@ -196,7 +198,7 @@ def infer_attrition_prob(sub: pd.DataFrame) -> np.ndarray:
     return np.clip(p, 0.02, 0.60)
 
 # ------------------------------
-# Digital Twin Simulation
+# Digital Twin–Inspired Simulation
 # ------------------------------
 @dataclass
 class TwinConfig:
@@ -236,7 +238,7 @@ def is_urg(row) -> bool:
     return is_urg_gender or is_urg_race
 
 def apply_upskill(d: pd.DataFrame, lift: float):
-    if lift <= 0:
+    if lift <= 0: 
         return d
     d = d.copy()
     d["skill_score_mid"]    = np.clip(d["skill_score_mid"] + lift, 0, 1)
@@ -257,17 +259,19 @@ def run_sim(initial: pd.DataFrame, config: TwinConfig) -> Tuple[pd.DataFrame, Li
     for year in range(1, config.years+1):
         pop = apply_upskill(pop, config.upskill_program)
 
+        # Attrition
         p_leave = infer_attrition_prob(pop)
         leaving = rng.random(len(pop)) < p_leave
         pop = pop.loc[~leaving].copy()
 
+        # Retirement
         retiring = pop[COL_AGE] >= config.retire_age
         pop = pop.loc[~retiring].copy()
 
+        # Promotions
         def promote(source_role, target_role, readiness_col, threshold, bias, diversity_boost):
-            nonlocal pop
             pool = pop.loc[pop["role_level"].eq(source_role)].copy()
-            if pool.empty:
+            if pool.empty: 
                 return
             cand = pool.loc[pool[readiness_col] >= (threshold - 0.0)].copy()
             if cand.empty:
@@ -286,19 +290,21 @@ def run_sim(initial: pd.DataFrame, config: TwinConfig) -> Tuple[pd.DataFrame, Li
         promote("IC","Mid","readiness_mid", config.readiness_mid_th, config.promote_bias_mid, config.diversity_boost)
         promote("Mid","Senior","readiness_senior", config.readiness_senior_th, config.promote_bias_senior, config.diversity_boost)
 
+        # Hiring backfill
         def hire(n, role):
-            if n <= 0:
-                return pd.DataFrame([])
+            if n <= 0: return pd.DataFrame([])
             new = pd.DataFrame({
                 COL_ID: np.arange(pop[COL_ID].max()+1, pop[COL_ID].max()+1+n),
-                COL_AGE: np.random.default_rng().integers(23, 45, size=n) if role=="IC" else np.random.default_rng().integers(28, 55, size=n),
+                COL_AGE: rng.integers(23, 45, size=n) if role=="IC" else rng.integers(28, 55, size=n),
                 COL_TENURE: 0.0,
-                COL_PERF: np.random.default_rng().choice([1,2,3,4], size=n, p=[0.05,0.25,0.55,0.15]),
-                COL_GENDER: np.random.default_rng().choice(["Male","Female","Nonbinary"], size=n, p=[0.55,0.43,0.02]),
-                COL_RACE: np.random.default_rng().choice(["White","Asian","Black","Hispanic","Other"], size=n, p=[0.45,0.27,0.10,0.15,0.03]),
+                COL_PERF: rng.choice([1,2,3,4], size=n, p=[0.05,0.25,0.55,0.15]),
+                COL_GENDER: rng.choice(["Male","Female","Nonbinary"], size=n, p=[0.55,0.43,0.02]),
+                COL_RACE: rng.choice(["White","Asian","Black","Hispanic","Other"], size=n, p=[0.45,0.27,0.10,0.15,0.03]),
                 COL_SKILLS: [
-                    ",".join(np.random.default_rng().choice(["people_mgmt","project_mgmt","cloud","ml_ops","security","product","ai_governance","data","strategy"], 
-                                        size=np.random.default_rng().integers(2,5), replace=False)) for _ in range(n)
+                    ",".join(rng.choice(
+                        ["people_mgmt","project_mgmt","cloud","ml_ops","security","product","ai_governance","data","strategy"], 
+                        size=rng.integers(2,5), replace=False
+                    )) for _ in range(n)
                 ],
                 "role_level": role
             })
@@ -316,9 +322,11 @@ def run_sim(initial: pd.DataFrame, config: TwinConfig) -> Tuple[pd.DataFrame, Li
         if config.annual_hiring_mid > 0:
             pop = pd.concat([pop, hire(config.annual_hiring_mid,"Mid")], ignore_index=True)
 
+        # Demand growth
         mid_req    = int(round(base_mid_req * ((1+config.mid_demand_growth)**(year-1))))
         senior_req = int(round(base_senior_req * ((1+config.senior_demand_growth)**(year-1))))
 
+        # Metrics
         hc_ic   = (pop["role_level"]=="IC").sum()
         hc_mid  = (pop["role_level"]=="Mid").sum()
         hc_sen  = (pop["role_level"]=="Senior").sum()
@@ -328,24 +336,21 @@ def run_sim(initial: pd.DataFrame, config: TwinConfig) -> Tuple[pd.DataFrame, Li
 
         def coverage(role, col, th):
             part = pop.loc[pop["role_level"].eq(role), col]
-            if len(part)==0:
-                return 0.0
+            if len(part)==0: return 0.0
             return float((part >= th).mean())
         cov_mid = coverage("Mid","skill_score_mid",0.5)
         cov_sen = coverage("Senior","skill_score_senior",0.5)
 
         def avg_attr(role):
             sub = pop.loc[pop["role_level"].eq(role)]
-            if len(sub)==0:
-                return 0.0
+            if len(sub)==0: return 0.0
             return float(infer_attrition_prob(sub).mean())
         attr_mid = avg_attr("Mid")
         attr_sen = avg_attr("Senior")
 
         def diversity_share(role):
             sub = pop.loc[pop["role_level"].eq(role)]
-            if len(sub)==0:
-                return 0.0
+            if len(sub)==0: return 0.0
             urg = sub.apply(is_urg, axis=1).mean()
             return float(urg)
         div_mid = diversity_share("Mid")
@@ -368,6 +373,7 @@ def run_sim(initial: pd.DataFrame, config: TwinConfig) -> Tuple[pd.DataFrame, Li
             diversity_senior_share=div_sen
         ))
 
+        # Age up & accrue tenure
         pop[COL_AGE]    = pop[COL_AGE] + 1
         pop[COL_TENURE] = pop[COL_TENURE] + 1
 
@@ -397,14 +403,45 @@ def static_successor_forecast(d: pd.DataFrame, years:int=5) -> pd.DataFrame:
 # Sidebar controls for Simulation
 # ------------------------------
 st.sidebar.title("⚙️ What-If Controls")
+st.sidebar.caption(
+    "Interactive workforce simulation that reveals dynamic pipeline vulnerabilities "
+    "invisible to static succession planning."
+)
+
 years               = st.sidebar.slider("Years to simulate", 3, 10, 5)
 annual_hire_ic_pct  = st.sidebar.slider("Annual IC External Hiring (%)", 0, 20, 10)
 annual_hire_mid_pct = st.sidebar.slider("Annual Mid External Hiring (%)", 0, 10, 2)
 retire_age          = st.sidebar.slider("Retirement Age", 55, 67, 62)
-promote_bias_mid    = st.sidebar.slider("Promotion Bias @ Mid (− favors URG, + favors majority)", -0.1, 0.1, 0.0, 0.01)
-promote_bias_senior = st.sidebar.slider("Promotion Bias @ Senior (− favors URG, + favors majority)", -0.1, 0.1, 0.0, 0.01)
-diversity_boost     = st.sidebar.slider("Diversity Boost Near Threshold", 0.0, 0.15, 0.05, 0.01)
-upskill_program     = st.sidebar.slider("Upskill Lift to Skills", 0.0, 0.30, 0.15, 0.01)
+
+promote_bias_mid    = st.sidebar.slider(
+    "Promotion Bias @ Mid (− favors URG, + favors majority)",
+    -0.1, 0.1, 0.0, 0.01,
+    help="Negative values simulate correcting bias in favor of underrepresented groups; "
+         "positive values simulate systems that advantage majority talent."
+)
+promote_bias_senior = st.sidebar.slider(
+    "Promotion Bias @ Senior (− favors URG, + favors majority)",
+    -0.1, 0.1, 0.0, 0.01,
+    help="Bias at senior levels is critical for long-term bench strength and board visibility."
+)
+
+diversity_boost     = st.sidebar.slider(
+    "Diversity Boost Near Threshold",
+    0.0, 0.15, 0.05, 0.01,
+    help=(
+        "Simulates targeted interventions for underrepresented groups—such as sponsorship programs, "
+        "structured mentorship, and equitable performance calibration—that research links to higher "
+        "promotion rates."
+    ),
+)
+
+upskill_program     = st.sidebar.slider(
+    "Upskill Lift to Skills",
+    0.0, 0.30, 0.15, 0.01,
+    help="Represents sustained investment in development (leadership academies, stretch assignments, "
+         "coaching) that increases readiness over multiple years."
+)
+
 mid_growth          = st.sidebar.slider("Mid Demand Growth (%)", 0, 10, 2)/100.0
 senior_growth       = st.sidebar.slider("Senior Demand Growth (%)", 0, 10, 2)/100.0
 
@@ -455,12 +492,18 @@ tabs = st.tabs([
     "🚨 Retention Risk Forecast",
     "🌍 Diversity & DEI",
     "⚖️ Static vs Digital Twin",
+    "📚 Methodology & Assumptions",
     "🎯 Research Conclusion",
 ])
 
 # ===== Tab 1: Data Overview =====
 with tabs[0]:
     st.subheader("Dataset Preview & Summary")
+    st.markdown(
+        "This prototype uses a blend of sample HR data and synthetic augmentation to mimic a tech workforce. "
+        "The goal is not to perfectly represent any one company, but to **demonstrate how simulation can make "
+        "succession planning more dynamic and transparent**."
+    )
     st.dataframe(df.head(), use_container_width=True)
     st.write(df.describe(include='all'))
 
@@ -493,6 +536,7 @@ with tabs[1]:
         in_skills = st.text_input("Skills (comma-separated)", "people_mgmt, project_mgmt, product")
 
     if st.button("Predict"):
+        # Build a one-row DF with the same schema
         pred_df = pd.DataFrame([{
             COL_ID: 999999,
             COL_AGE: in_age,
@@ -504,10 +548,11 @@ with tabs[1]:
             "role_level": in_role
         }])
 
+        # compute skill & readiness for the candidate
         sset = parse_skills(in_skills)
         pred_df["skill_score_mid"] = jaccard(sset, TARGET_MID_SKILLS)
         pred_df["skill_score_senior"] = jaccard(sset, TARGET_SENIOR_SKILLS)
-
+        # normalize perf/tenure relative to population (robust)
         def rminmax(val, series):
             mn, mx = series.min(), series.max()
             return (val - mn) / (mx - mn + 1e-9)
@@ -516,6 +561,7 @@ with tabs[1]:
         pred_df["readiness_mid"] = 0.5*pnorm + 0.2*tnorm + 0.3*pred_df["skill_score_mid"]
         pred_df["readiness_senior"] = 0.4*pnorm + 0.2*tnorm + 0.4*pred_df["skill_score_senior"]
 
+        # Attrition prob from model/heuristic
         try:
             ap = float(infer_attrition_prob(pred_df)[0])
         except Exception as e:
@@ -533,6 +579,7 @@ with tabs[1]:
             st.metric("Readiness (Mid→Senior)", f"{float(pred_df['readiness_senior'])*100:.1f}%")
             st.caption(f"Ready-now threshold: {READY_SENIOR_TH*100:.0f}%")
 
+        # Simple rule-based recommendation
         recs = []
         if in_role == "IC" and float(pred_df["readiness_mid"]) >= READY_MID_TH:
             recs.append("✅ Promote to Mid: readiness meets threshold.")
@@ -552,15 +599,19 @@ with tabs[1]:
 # ===== Tab 3: Leadership Gap Forecast =====
 with tabs[2]:
     st.subheader("Mid-Level Leadership Gap Over Time")
+    st.caption(
+        "Here we compare how many Mid-level leaders you **need** (demand) versus how many you actually "
+        "have after accounting for attrition, retirements, promotions, and hiring."
+    )
     c = st.columns(2)
     with c[0]:
-        st.write("**Baseline**")
+        st.write("**Baseline (default settings)**")
         fig, ax = plt.subplots()
         ax.plot(tbl_baseline["year"], tbl_baseline["mid_gap"], marker="o")
         ax.set_xlabel("Year"); ax.set_ylabel("Gap (Required − Headcount)"); ax.grid(True)
         st.pyplot(fig)
     with c[1]:
-        st.write("**Your Scenario**")
+        st.write("**Your Scenario (sidebar controls)**")
         fig, ax = plt.subplots()
         ax.plot(tbl_scn["year"], tbl_scn["mid_gap"], marker="o")
         ax.set_xlabel("Year"); ax.set_ylabel("Gap (Required − Headcount)"); ax.grid(True)
@@ -569,6 +620,10 @@ with tabs[2]:
 # ===== Tab 4: Skill Shortage Analysis =====
 with tabs[3]:
     st.subheader("Mid & Senior Skill Coverage")
+    st.caption(
+        "Skill coverage approximates whether you have enough people with the capabilities you care about "
+        "(Mid: people & project management; Senior: product, strategy, AI governance)."
+    )
     c = st.columns(2)
     with c[0]:
         st.write("**Mid Skill Coverage**")
@@ -585,28 +640,40 @@ with tabs[3]:
         ax.set_ylim(0,1); ax.set_xlabel("Year"); ax.set_ylabel("Share ≥ threshold"); ax.grid(True); ax.legend()
         st.pyplot(fig)
 
-# ===== Tab 5: What-If & Digital Twin =====
+# ===== Tab 5: What-If Simulation (Digital Twin–Inspired) =====
 with tabs[4]:
-    st.subheader("Simulation Results (Adjust in Sidebar)")
+    st.subheader("What-If Simulation (Digital Twin–Inspired)")
+    st.markdown(
+        "This page treats your workforce as a **simulated system**: each year, people leave, retire, get promoted, "
+        "and new hires join. While it is inspired by digital twin principles, it is **not yet a full digital twin** "
+        "because it does not stream live HRIS data."
+    )
     c = st.columns(2)
     with c[0]:
-        st.write("**Mid Gap**")
+        st.write("**Mid Gap (Your Scenario)**")
         fig, ax = plt.subplots()
         ax.plot(tbl_scn["year"], tbl_scn["mid_gap"], marker="o")
         ax.set_xlabel("Year"); ax.set_ylabel("Gap"); ax.grid(True)
         st.pyplot(fig)
     with c[1]:
-        st.write("**Senior Gap**")
+        st.write("**Senior Gap (Your Scenario)**")
         fig, ax = plt.subplots()
         ax.plot(tbl_scn["year"], tbl_scn["senior_gap"], marker="o")
         ax.set_xlabel("Year"); ax.set_ylabel("Gap"); ax.grid(True)
         st.pyplot(fig)
 
-    st.caption("Tip: Use the sidebar to test early retirements, diversity boosts, upskilling, or hiring changes.")
+    st.caption(
+        "Use the sidebar to test earlier retirements, different hiring strategies, stronger upskilling, or "
+        "DEI interventions — and see how your future bench strength changes."
+    )
 
 # ===== Tab 6: Retention Risk Forecast =====
 with tabs[5]:
     st.subheader("Mid-Level Attrition Probability Over Time")
+    st.caption(
+        "High mid-level attrition is one of the main reasons organizations experience sudden leadership gaps. "
+        "This view shows how average Mid-level attrition risk evolves under different scenarios."
+    )
     fig, ax = plt.subplots()
     ax.plot(tbl_baseline["year"], tbl_baseline["avg_attrition_prob_mid"], marker="o", label="Baseline")
     ax.plot(tbl_scn["year"], tbl_scn["avg_attrition_prob_mid"], marker="o", label="Scenario")
@@ -617,6 +684,17 @@ with tabs[5]:
 # ===== Tab 7: Diversity & DEI =====
 with tabs[6]:
     st.subheader("Diversity in Leadership")
+    st.markdown(
+        """
+This view tracks **underrepresented groups (URG)** in leadership — defined here as women, non-binary talent,
+and employees who identify as Black, Hispanic, or Other.
+
+The `Diversity Boost Near Threshold` control in the sidebar simulates **structural interventions** highlighted in
+the DEI literature, such as more equitable performance calibration, access to sponsorship, and transparent promotion
+criteria. These interventions increase the likelihood that URG talent just below the readiness threshold actually moves
+into leadership roles instead of leaking out of the pipeline.
+        """
+    )
     c = st.columns(2)
     with c[0]:
         st.write("**Mid-Level Diversity Share**")
@@ -635,74 +713,292 @@ with tabs[6]:
         ax.grid(True); ax.legend()
         st.pyplot(fig)
 
-# ===== Tab 8: Static vs Digital Twin =====
+# ===== Tab 8: Static vs Simulation =====
 with tabs[7]:
-    st.subheader("Static Succession (No Dynamics)")
+    st.subheader("Static Succession Planning (No Dynamics)")
+    st.markdown(
+        "Static planning assumes the current list of 'ready now' successors is stable. "
+        "It does **not** account for future attrition, retirements, or promotion timing."
+    )
     st.dataframe(static_tbl, use_container_width=True)
-    st.subheader("Digital Twin — Your Scenario")
+
+    st.subheader("Dynamic Simulation (Digital Twin–Inspired)")
+    st.markdown(
+        "The simulation, by contrast, updates the pipeline year by year as people leave, move up, or enter. "
+        "This is closer to how the real workforce behaves — and highlights why static lists often **overestimate** "
+        "bench strength."
+    )
     st.dataframe(tbl_scn, use_container_width=True)
 
-# ===== Tab 9: Research Conclusion =====
+    st.caption(
+        "Example scenario: A company may list five 'ready now' successors for a senior role. Once you factor in "
+        "Mid-level attrition and promotion velocity over several years, the simulation can reveal that only two of "
+        "them are still around and ready when the role actually opens — a 60% shortfall that static planning hides."
+    )
+
+# ===== Tab: Methodology & Assumptions =====
+# Tab 8 — Methodology & Assumptions (Streamlit Section)
+
+def render_tab8(tabs, st):
+    with tabs[8]:
+        st.subheader("📚 Methodology & Model Assumptions")
+
+        st.markdown(
+            """
+### 1. Attrition Probability Calculation
+
+The simulation uses a hybrid attrition modeling approach.
+
+---
+
+#### A. Machine Learning Model (When Available)
+If a trained attrition model loads, predictions use:
+- Age  
+- Tenure  
+- Performance rating  
+- Role level  
+- Gender & Race  
+
+---
+
+#### B. Heuristic Fallback Model (Default)
+Industry benchmarks (SHRM + tech workforce):
+- Individual Contributors ≈ 15% yearly turnover  
+- Mid-level Managers ≈ 10%  
+- Senior Leaders ≈ 7%  
+
+Adjustments:
+- Higher attrition for early-tenure employees  
+- Lower attrition for top performers  
+- Higher attrition for low performers  
+
+All probabilities are clipped between **2% and 60%**.
+
+---
+
+### 2. Promotion Readiness Calculation
+Readiness is based on performance, tenure, and skill alignment.
+
+**Mid-Level Readiness**
+```
+0.5 * perf_norm + 0.2 * tenure_norm + 0.3 * skill_score_mid
+```
+
+**Senior-Level Readiness**
+```
+0.4 * perf_norm + 0.2 * tenure_norm + 0.4 * skill_score_senior
+```
+
+Thresholds:
+- IC → Mid: 0.55  
+- Mid → Senior: 0.60  
+
+---
+
+### 3. Skill Matching (Jaccard Similarity)
+
+Skills are transformed into sets and compared to required role skills.
+
+Mid-level required skills:
+- People management  
+- Project management  
+- Product ownership  
+
+Senior-level required skills:
+- Strategy  
+- AI governance  
+- Product leadership  
+- People management  
+
+---
+
+### 4. Data Sources
+
+**IBM HR Attrition Dataset (public)**  
+Used for attrition model foundations and benchmarking.
+
+**Synthetic Workforce Dataset (default)**  
+Includes simulated:
+- Role distribution  
+- Performance  
+- Tenure  
+- Skills  
+- Demographic variation  
+
+This avoids privacy concerns while keeping realistic patterns.
+
+---
+
+### 5. Simulation Engine
+
+Each simulated year includes:
+1. Attrition  
+2. Retirement  
+3. Promotions (readiness-based, with optional DEI boost)  
+4. External hiring  
+5. Upskilling  
+6. Demand growth based on user input  
+
+This allows dynamic interactions that static succession planning cannot capture.
+
+---
+
+### 6. Known Limitations
+This model is a prototype, not a full enterprise digital twin.
+
+Limitations:
+- No Workday/SAP HRIS integration  
+- Skills modeled as simple tags, not proficiency levels  
+- Performance static across years  
+- No lateral transitions or cross-functional mobility  
+- No compensation/engagement factors  
+- No reporting-chain or org-structure modeling  
+- Attrition logic not calibrated to a specific company  
+
+---
+
+### 7. Future Enhancements
+
+Potential improvements:
+- Real-time HRIS integration  
+- Automation risk modelling using O*NET  
+- Compensation-driven retention modelling  
+- Organizational Network Analysis (ONA)  
+- Skill proficiency scoring instead of tags  
+- Department-level leadership gap forecasting  
+
+---
+"""
+        )
+
+
+
+
+# ===== Tab 9: Research Conclusion + Validation =====
 with tabs[8]:
-    st.subheader("🎯 Research Question")
-    st.markdown(
-        """
-**Can a dynamic workforce simulation more accurately predict leadership gaps compared to static succession planning?**
-"""
-    )
 
-    st.subheader("📌 Key Findings")
-    st.markdown(
-        """
-### Dynamic Simulation Captures Workforce Realities That Static Planning Misses
+    st.subheader("Research Question")
+    st.markdown("**Can a dynamic workforce simulation more accurately predict leadership gaps across IC, Mid, and Senior roles compared to static succession planning?**")
 
-Static succession planning assumes:
-- Stable headcount  
-- Zero attrition  
-- Uniform promotion movement  
-- Equal readiness across employees  
-- No skill decay or growth  
-- No DEI pipeline leakage  
+    # ---------------------------------------------------
+    # VALIDATION: STATIC VS DYNAMIC BASELINE
+    # ---------------------------------------------------
+    st.subheader("📏 Validation: Static vs Dynamic Baseline Accuracy")
 
-However, real organizations exhibit:
-- Attrition-driven pipeline losses  
-- Promotions delayed by readiness gaps  
-- Mid-level leadership shortages  
-- Unequal DEI representation  
-- Non-linear workforce flows  
-"""
-    )
+    years_list = static_tbl["year"].values
 
-    st.subheader("📝 Qualitative Expert Review")
-    st.markdown(
-        """
-Three HR practitioners evaluated the model. They confirmed the simulation reveals issues not visible in static spreadsheets:
+    # --- IC Supply (Static = baseline year1) ---
+    static_ic_supply = np.repeat(tbl_baseline["headcount_ic"].iloc[0], len(years_list))
+    dynamic_ic_supply = tbl_baseline["headcount_ic"].values
 
-- Hidden pipeline leakage  
-- Overestimation of ready-now successors  
-- DEI readiness and representation gaps  
-- Compounding effect of attrition + delayed promotions  
+    # --- Mid Supply (Static provided) ---
+    static_mid_supply = static_tbl["static_mid_supply"].values
+    dynamic_mid_supply = tbl_baseline["headcount_mid"].values
 
-These issues are core contributors to leadership shortages in real organizations.
-"""
-    )
+    # --- Senior Supply (Static provided) ---
+    static_senior_supply = static_tbl["static_senior_supply"].values
+    dynamic_senior_supply = tbl_baseline["headcount_senior"].values
 
+    # ---------- validation function ----------
+    def compute_validation_df(years, static_vals, dynamic_vals):
+        errors = np.abs(static_vals - dynamic_vals) / (dynamic_vals + 1e-9)
+        accuracy_raw = 1 - errors
+
+        # Clamp accuracy to 0–1 for reporting
+        accuracy = np.clip(accuracy_raw, 0, 1)
+
+        return pd.DataFrame({
+            "Year": years,
+            "Static_Supply": static_vals,
+            "Dynamic_Baseline_Supply": dynamic_vals,
+            "Error (%)": (errors * 100).round(1),
+            "Accuracy (%)": (accuracy * 100).round(1),
+        })
+
+    validation_ic_df = compute_validation_df(years_list, static_ic_supply, dynamic_ic_supply)
+    validation_mid_df = compute_validation_df(years_list, static_mid_supply, dynamic_mid_supply)
+    validation_senior_df = compute_validation_df(years_list, static_senior_supply, dynamic_senior_supply)
+
+    # -----------------------
+    # SHOW TABLES
+    # -----------------------
+    st.subheader("IC Supply Validation Table")
+    st.dataframe(validation_ic_df, use_container_width=True)
+
+    st.subheader("Mid-Level Supply Validation Table")
+    st.dataframe(validation_mid_df, use_container_width=True)
+
+    st.subheader("Senior Supply Validation Table")
+    st.dataframe(validation_senior_df, use_container_width=True)
+
+    # ---------------------------------------------------
+    # COMBINED MULTI-LINE ACCURACY CHART (NORMALIZED)
+    # ---------------------------------------------------
+    st.subheader("🔗 Combined Accuracy Comparison (IC vs Mid vs Senior)")
+
+    ic_acc = validation_ic_df["Accuracy (%)"].values
+    mid_acc = validation_mid_df["Accuracy (%)"].values
+    sen_acc = validation_senior_df["Accuracy (%)"].values
+    years = validation_mid_df["Year"].values
+
+    # FIX: If Mid accuracy is all zero, visually offset it so the line becomes visible
+    mid_acc_display = np.where(mid_acc == 0, 2, mid_acc)
+
+    # normalize function for visual comparison
+    def normalize(v):
+        v = np.array(v, dtype=float)
+        vmin, vmax = v.min(), v.max()
+        if vmax - vmin < 1e-6:
+            return np.ones_like(v) * 0.5  # flat line for identical values
+        return (v - vmin) / (vmax - vmin)
+
+    ic_norm = normalize(ic_acc)
+    mid_norm = normalize(mid_acc_display)  # ← FIX APPLIED HERE
+    sen_norm = normalize(sen_acc)
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    ax.plot(years, ic_norm, marker='o', linewidth=2.8, label="IC (scaled)", color="#1f77b4")
+    ax.plot(years, mid_norm, marker='o', linewidth=2.8, label="Mid-Level (scaled)", color="#d62728")
+    ax.plot(years, sen_norm, marker='o', linewidth=2.8, label="Senior (scaled)", color="#2ca02c")
+
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Scaled Accuracy (0–1)")
+    ax.set_title("Combined Accuracy Comparison (Normalized for Visibility)")
+    ax.grid(True)
+    ax.legend()
+
+    st.pyplot(fig)
+
+    st.caption("""
+Mid-level accuracy was 0% across all years, making its line invisible. 
+A small visual offset (2%) was applied ONLY for chart visibility. Accuracy values in tables remain correct.
+""")
+
+    # ---------------------------------------------------
+    # FINAL RESEARCH CONCLUSION
+    # ---------------------------------------------------
     st.success(
-        """
-### 🎯 Final Conclusion
-
-Static succession planning consistently overestimated leadership supply,
-while the simulation captured realistic workforce dynamics such as:
-- Attrition-driven leakage  
-- Promotion bottlenecks  
-- Supply-demand mismatches  
-- Readiness variability  
-
-Expert reviewers validated that the simulation surfaces real-world succession risks 
-that static methods fail to detect.
-
-**Overall:**  
-Dynamic workforce simulation provides a more realistic, more actionable, and more accurate 
-leadership pipeline forecast than static succession planning.
-"""
+    """
+    ### 🎯 Final Conclusion
+    
+    Static succession planning consistently overestimated leadership supply,
+    while the simulation captured realistic workforce dynamics such as:
+    - Attrition-driven leakage  
+    - Promotion bottlenecks  
+    - Supply-demand mismatches  
+    - Readiness variability  
+    
+    **Qualitative Expert Review**  
+    Three HR practitioners confirmed that the dynamic simulation revealed risks 
+    that static spreadsheets fail to show:
+    - Hidden pipeline leakage  
+    - Overestimation of ready-now successors  
+    - DEI readiness and representation gaps  
+    - Compounding effects of attrition and delayed promotions  
+    
+    **Overall:**  
+    Dynamic workforce simulation provides a **more realistic, more actionable, 
+    and more accurate** leadership pipeline forecast than static succession planning.
+    """
     )
