@@ -762,20 +762,20 @@ with tabs[8]:
 
     # ---------- validation function ----------
     def compute_validation_df(years, static_vals, dynamic_vals):
-    errors = np.abs(static_vals - dynamic_vals) / (dynamic_vals + 1e-9)
-    accuracy_raw = 1 - errors
-
-    # Clamp accuracy to 0–1 to avoid negative accuracy
-    accuracy = np.clip(accuracy_raw, 0, 1)
-
-    return pd.DataFrame({
-        "Year": years,
-        "Static_Supply": static_vals,
-        "Dynamic_Baseline_Supply": dynamic_vals,
-        "Error (%)": (errors * 100).round(1),
-        "Accuracy (%)": (accuracy * 100).round(1),
-    })
-
+        errors = np.abs(static_vals - dynamic_vals) / (dynamic_vals + 1e-9)
+        accuracy_raw = 1 - errors
+    
+        # Clamp accuracy to 0–1 to avoid negative accuracy
+        accuracy = np.clip(accuracy_raw, 0, 1)
+    
+        return pd.DataFrame({
+            "Year": years,
+            "Static_Supply": static_vals,
+            "Dynamic_Baseline_Supply": dynamic_vals,
+            "Error (%)": (errors * 100).round(1),
+            "Accuracy (%)": (accuracy * 100).round(1),
+        })
+    
     validation_ic_df = compute_validation_df(years_list, static_ic_supply, dynamic_ic_supply)
     validation_mid_df = compute_validation_df(years_list, static_mid_supply, dynamic_mid_supply)
     validation_senior_df = compute_validation_df(years_list, static_senior_supply, dynamic_senior_supply)
